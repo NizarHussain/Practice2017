@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd">
+	
+    <context:annotation-config />
+	<context:property-placeholder location="classpath:config/server/spring.properties" />
+	
+	<bean name ="namingServerImpl" class="org.jnp.server.NamingBeanImpl" init-method="start" destroy-method="stop">
+	</bean>
+		
+	<!-- JNDI server. Disable this if you don't want JNDI -->
+	<bean name="namingServer" class="org.jnp.server.Main" init-method="start" destroy-method="stop">
+		<property name="namingInfo" ref="namingServerImpl"></property>
+		<property name="port" value="1099"></property>
+		<property name="bindAddress" value="localhost"></property>
+		<property name="rmiPort" value="1098"></property>
+		<property name="rmiBindAddress" value="localhost"></property>
+	</bean>
+	
+	<!-- MBean server -->
+	<bean name="mbeanServer" class="java.lang.management.ManagementFactory" factory-method="getPlatformMBeanServer">
+	</bean>
+	
+	<!-- The core configuration -->
+	<bean name="fileConfiguration" class="org.hornetq.core.config.impl.FileConfiguration" init-method="start" destroy-method="stop">
+	</bean>
+   
+	<!-- The security manager -->
+	<bean name="hornetQSecurityManagerImpl" class="org.hornetq.spi.core.security.HornetQSecurityManagerImpl">
+	</bean>
+	
+	<!-- The core server -->
+	<bean name="hornetQServerImpl" class="org.hornetq.core.server.impl.HornetQServerImpl">
+		<constructor-arg ref="fileConfiguration" />
+		<constructor-arg ref="mbeanServer" />
+		<constructor-arg ref="hornetQSecurityManagerImpl" />
+	</bean>
+		   
+	<!-- The JMS server -->
+	<bean name="jmsServerManagerImpl" class="org.hornetq.jms.server.impl.JMSServerManagerImpl" init-method="start" destroy-method="stop">
+		<constructor-arg ref="hornetQServerImpl" />
+	</bean>	   
+	
+	<bean name="connectionFactory" class="org.hornetq.jms.client.HornetQConnectionFactory" >
+		<constructor-arg>
+			<bean class="org.hornetq.api.core.TransportConfiguration">
+				<constructor-arg value="org.hornetq.integration.transports.netty.NettyConnectorFactory" />
+				<constructor-arg>
+					<map key-type="java.lang.String" value-type="java.lang.Object">
+						<entry key="port" value="5445"></entry>
+					</map>
+				</constructor-arg>
+			</bean>
+		</constructor-arg>
+	</bean>
+	
+	<bean name="jmsTemplate" class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory" ref="connectionFactory"></property>
+	</bean>
+		   
+	<bean name="messageProducerClient" class="com.howtodoinjava.hornetq.demo.MessageProducerClient">
+		<property name="jmsTemplate" ref="jmsTemplate"></property>
+	</bean>
+	
+	<bean name="messageConsumerClient" class="com.howtodoinjava.hornetq.demo.MessageConsumerClient">
+		<property name="jmsTemplate" ref="jmsTemplate"></property>
+	</bean>
+	
+</beans>
